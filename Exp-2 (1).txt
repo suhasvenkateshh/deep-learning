@@ -1,0 +1,203 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import tensorflow as tf
+from sklearn.datasets import load_iris
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
+
+np.random.seed(42)
+tf.random.set_seed(42)
+
+iris = load_iris()
+X = iris.data
+y = iris.target
+classes = iris.target_names
+
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X_scaled,
+    y,
+    test_size=0.2,
+    random_state=42,
+    stratify=y
+)
+
+def create_mlp(hidden_layers, activation):
+
+    model = Sequential()
+
+    model.add(
+        Dense(
+            hidden_layers[0],
+            input_shape=(4,),
+            activation=activation
+        )
+    )
+
+    for units in hidden_layers[1:]:
+        model.add(
+            Dense(units, activation=activation)
+        )
+
+    model.add(
+        Dense(3, activation="softmax")
+    )
+
+    model.compile(
+        optimizer="adam",
+        loss="sparse_categorical_crossentropy",
+        metrics=["accuracy"]
+    )
+
+    return model
+
+hidden_layer_configs = [
+    [8],
+    [16, 8],
+    [32, 16, 8]
+]
+
+activations = [
+    "relu",
+    "tanh",
+    "sigmoid"
+]
+
+results = []
+
+for hidden_layers in hidden_layer_configs:
+
+    for activation in activations:
+
+        print("\n--------------------------------")
+        print("Hidden Layers:", hidden_layers)
+        print("Activation:", activation)
+        print("--------------------------------")
+
+        model = create_mlp(hidden_layers, activation)
+
+        history = model.fit(
+            X_train,
+            y_train,
+            epochs=30,
+            batch_size=8,
+            validation_split=0.1,
+            verbose=0
+        )
+
+        loss, accuracy = model.evaluate(
+            X_test,
+            y_test,
+            verbose=0
+        )
+
+        print("Test Accuracy:", round(accuracy * 100, 2), "%")
+        print("Test Loss:", round(loss, 4))
+
+        results.append(
+            (
+                hidden_layers,
+                activation,
+                accuracy,
+                loss
+            )
+        )
+
+print("\n\nFINAL RESULTS")
+print("--------------------------------")
+
+for result in results:
+
+    hidden_layers, activation, accuracy, loss = result
+
+    print(
+        "Layers:",
+        hidden_layers,
+        "| Activation:",
+        activation,
+        "| Accuracy:",
+        round(accuracy * 100, 2),
+        "%",
+        "| Loss:",
+        round(loss, 4)
+    )
+
+model = create_mlp(
+    [32, 16, 8],
+    "relu"
+)
+
+history = model.fit(
+    X_train,
+    y_train,
+    epochs=30,
+    batch_size=8,
+    validation_split=0.1,
+    verbose=0
+)
+
+plt.figure(figsize=(7, 5))
+
+plt.plot(
+    history.history["accuracy"],
+    label="Training Accuracy"
+)
+
+plt.plot(
+    history.history["val_accuracy"],
+    label="Validation Accuracy"
+)
+
+plt.xlabel("Epoch")
+plt.ylabel("Accuracy")
+plt.title("MLP Accuracy")
+plt.legend()
+plt.grid()
+plt.show()
+
+plt.figure(figsize=(7, 5))
+
+plt.plot(
+    history.history["loss"],
+    label="Training Loss"
+)
+
+plt.plot(
+    history.history["val_loss"],
+    label="Validation Loss"
+)
+
+plt.xlabel("Epoch")
+plt.ylabel("Loss")
+plt.title("MLP Loss")
+plt.legend()
+plt.grid()
+plt.show()
+
+print("\nEnter flower measurements")
+
+sepal_length = float(input("Sepal Length (cm): "))
+sepal_width = float(input("Sepal Width (cm): "))
+petal_length = float(input("Petal Length (cm): "))
+petal_width = float(input("Petal Width (cm): "))
+
+user_input = np.array([
+    [sepal_length, sepal_width, petal_length, petal_width]
+])
+
+user_input_scaled = scaler.transform(user_input)
+
+prediction = model.predict(
+    user_input_scaled,
+    verbose=0
+)
+
+predicted_index = np.argmax(prediction)
+
+print("\nPredicted Iris Species:")
+print(classes[predicted_index])
+
